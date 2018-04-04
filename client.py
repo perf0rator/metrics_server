@@ -22,55 +22,52 @@ class Client():
         self.sock = socket.create_connection((self.host, self.port), self.timeout)
         self.err_msg = 'error\nwrong command\n\n'
 
+    def _read(self):
+        data = ''
+        while not data[len(data) - 2:] == '\n\n':
+            try:
+                resp = self.sock.recv(1024)
+                data += resp.decode("utf-8")
+                return data
+            except socket.error:
+                ClientError('error send data', socket.error)
+
+
+
     def put(self, key, val, timestamp=tstamp()):
         s = '{} {} {} {}{}'.format('put', str(key), str(val), str(timestamp), '\n')
         s = s.encode()
         self.sock.sendall(s)
-        responce_data = ''
-        while True:
-            resp = self.sock.recv(1024)
-            responce_data += resp.decode("utf-8")
-            if responce_data[len(responce_data) - 2:] == '\n\n':
-                break
-        if responce_data == self.err_msg:
-            raise ClientError('error send data', socket.error)
-        else:
-            pass
+        self._read()
 
     def get(self, key):
         s = '{} {}{}'.format("get", str(key), '\n')
         s = s.encode()
-
         self.sock.sendall(s)
+        resp = self._read()
 
-        responce_data = ''
-        while True:
-            resp = self.sock.recv(1024)
-            responce_data += resp.decode("utf-8")
-            if responce_data[len(responce_data) - 2:] == '\n\n':
-                break
-        if responce_data == self.err_msg:
-            raise ClientError('error send data', socket.error)
+        if len(resp) < 3:
+            return {}
         else:
-            if len(responce_data) < 3:
-                return {}
-            else:
-                data = responce_data.split('\n')
-                a = []
-                keys = []
-                for i in data:
-                    if len(i) > 3:
-                        a.append(i)
+            data = resp.split('\n')
+            a = []
+            keys = []
+            for i in data:
+                if len(i) > 3:
+                    a.append(i)
+            """preparing this: b'put load 301 3\ntest 0.5 1\n'
+                      to this: {'load': [(3, 301.0)], 'test': [(1, 0.5), (2, 0.4)]
+            """
 
-                for i in range(len(a)):
-                    splt(keys, a, i)
-                result = {}
-                for i in range(len(keys)):
-                    result.update({keys[i]: []})
-                    for k in range(len(a)):
-                            if a[k].split(' ')[0] == keys[i]:
-                                result[str(keys[i])].append(((int(a[k].split(' ')[2])), (float(a[k].split(' ')[1]))))
-            return result
+            for i in range(len(a)):
+                splt(keys, a, i)
+            result = {}
+            for i in range(len(keys)):
+                result.update({keys[i]: []})
+                for k in range(len(a)):
+                        if a[k].split(' ')[0] == keys[i]:
+                            result[str(keys[i])].append(((int(a[k].split(' ')[2])), (float(a[k].split(' ')[1]))))
+        return result
 
 
 class ClientError(Exception):
@@ -82,7 +79,3 @@ class ClientError(Exception):
 
 #if __name__ == "__main__":
 #    _main()
-
-
-
-
